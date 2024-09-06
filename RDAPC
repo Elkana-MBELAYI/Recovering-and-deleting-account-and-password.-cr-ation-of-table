@@ -1,0 +1,101 @@
+Pour mettre en œuvre les tables **EMPLOYES**, **DEPARTMENTS**, **TÂCHES**, et **RESET** et pour configurer les autorisations spécifiques pour l'utilisateur **Victoria** dans un environnement de base de données relationnelle, voici les étapes et le code SQL nécessaires. J'utiliserai un exemple avec MySQL ou MariaDB, mais les concepts sont similaires pour d'autres SGBD comme PostgreSQL ou SQL Server.
+
+### 1. Création des tables
+
+Voici un exemple de définition des tables avec des colonnes adaptées à la demande. La table **EMPLOYES** contiendra une colonne **PASSWORD** :
+
+```sql
+CREATE TABLE RESET (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    action VARCHAR(100) NOT NULL,
+    reset_date DATE
+);
+
+CREATE TABLE EMPLOYES (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nom VARCHAR(100) NOT NULL,
+    prenom VARCHAR(100) NOT NULL,
+    poste VARCHAR(100),
+    salaire DECIMAL(10, 2),
+    password VARCHAR(255) NOT NULL -- colonne PASSWORD pour stocker les mots de passe
+);
+
+CREATE TABLE DEPARTMENTS (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nom VARCHAR(100) NOT NULL,
+    manager_id INT,
+    FOREIGN KEY (manager_id) REFERENCES EMPLOYES(id)
+);
+
+CREATE TABLE TACHES (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    titre VARCHAR(100),
+    description TEXT,
+    employe_id INT,
+    FOREIGN KEY (employe_id) REFERENCES EMPLOYES(id)
+);
+```
+
+### 2. Création de l'utilisateur Victoria
+
+Nous allons créer un utilisateur pour Victoria et appliquer les restrictions spécifiées.
+
+```sql
+CREATE USER 'victoria'@'%' IDENTIFIED BY 'secure_password';
+```
+
+### 3. Configuration des autorisations pour Victoria
+
+#### a. **Ne pas voir la table RESET**
+Nous n'allons pas donner d'autorisation d'accès à cette table.
+
+```sql
+REVOKE ALL PRIVILEGES ON `RESET` FROM 'victoria'@'%';
+```
+
+#### b. **Pouvoir voir la liste des employés mais pas la colonne PASSWORD**
+Nous utilisons une **vue** pour masquer la colonne `password` et donner l'accès à la vue au lieu de la table entière.
+
+1. Créer une vue sans la colonne `password` :
+
+```sql
+CREATE VIEW employes_sans_password AS
+SELECT id, nom, prenom, poste, salaire
+FROM EMPLOYES;
+```
+
+2. Donner à Victoria l'accès **SEULEMENT** à cette vue :
+
+```sql
+GRANT SELECT ON `employes_sans_password` TO 'victoria'@'%';
+```
+
+#### c. **Pouvoir lister les départements mais pas INSERT ni UPDATE**
+Nous donnons seulement des privilèges de lecture (SELECT) sur la table **DEPARTMENTS** :
+
+```sql
+GRANT SELECT ON `DEPARTMENTS` TO 'victoria'@'%';
+```
+
+#### d. **Pouvoir lister et insérer dans la table TACHES mais pas UPDATE ni DELETE**
+Nous donnons les privilèges `SELECT` et `INSERT` sur la table **TACHES**, sans permettre `UPDATE` ni `DELETE` :
+
+```sql
+GRANT SELECT, INSERT ON `TACHES` TO 'victoria'@'%';
+```
+
+### 4. Appliquer les changements
+Après avoir configuré les autorisations, exécutez la commande suivante pour appliquer les nouveaux privilèges :
+
+```sql
+FLUSH PRIVILEGES;
+```
+
+### 5. Récapitulatif des autorisations de Victoria
+
+- **RESET** : Aucun accès.
+- **EMPLOYES** : Accès à la vue `employes_sans_password` (pas accès à la colonne `password`).
+- **DEPARTMENTS** : Accès en lecture seule.
+- **TACHES** : Peut lire et insérer des enregistrements, mais ne peut pas modifier ni supprimer.
+
+Cela permet de contrôler les accès conformément aux exigences.
